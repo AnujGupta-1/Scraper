@@ -4,113 +4,124 @@ import fs from 'fs';
 import path from 'path';
 import { Parser } from 'json2csv';
 
-const scrapeGreyhoundRaceList = async () => {
-  try {
-    logger.info("Launching Puppeteer...");
-    const browser = await puppeteer.launch({ headless: false });
-    const page = await browser.newPage();
+const extractDateFromURL = (url) => {
+  const match = url.match(/-(\d{8})\//);
+  if (match) {
+    const raw = match[1];
+    return `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`;
+  }
+  return 'Unknown';
+};
 
-    logger.info("Navigating to Greyhound Racing page...");
-    await page.goto('https://www.odds.com.au/greyhounds/', { waitUntil: 'networkidle2' });
+const scrapeTab = async (page) => {
+  return await page.evaluate(() => {
+    const baseUrl = 'https://www.odds.com.au';
+    const trackNames = Array.from(document.querySelectorAll('.racing-meeting-rows__main-left > div'))
+      .map(div => div.innerText.trim());
 
-    // Wait for essential elements
-    await page.waitForSelector('.racing-meeting-rows__right-inner', { timeout: 20000 });
-    await page.waitForSelector('.date-selectors', { timeout: 10000 });
+    const trackRows = document.querySelectorAll('.racing-meeting-rows__right-inner > .racing-meeting-row');
+    const data = [];
 
-    logger.info("Extracting structured race data from page...");
+    trackRows.forEach((row, index) => {
+      const trackName = trackNames[index];
+      const raceLinks = row.querySelectorAll('a');
+      const races = [];
 
-    const raceData = await page.evaluate(() => {
-      const baseUrl = 'https://www.odds.com.au';
-      const data = [];
+      raceLinks.forEach(link => {
+        const raceURL = baseUrl + link.getAttribute('href');
+        const content = link.innerText.trim();
+        const parts = content.split(/\s|\n/);
+        const raceNumber = parts.find(p => /^R\d+$/i.test(p));
+        const startTime = parts.find(p => /^\d{1,2}:\d{2}$/.test(p));
 
-      function extractDateFromURL(url) {
-        const match = url.match(/-(\d{8})\//);
-        if (match) {
-          const raw = match[1];
-          return `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`;
-        }
-        return 'Unknown';
-      }
-
-      const trackNames = Array.from(document.querySelectorAll('.racing-meeting-rows__main-left > div'))
-        .map(div => div.innerText.trim());
-
-      const trackRows = document.querySelectorAll('.racing-meeting-rows__right-inner > .racing-meeting-row');
-
-      trackRows.forEach((row, index) => {
-        const trackName = trackNames[index];
-        const raceLinks = row.querySelectorAll('a');
-        const races = [];
-
-        raceLinks.forEach(link => {
-          const raceURL = baseUrl + link.getAttribute('href');
-          const content = link.innerText.trim();
-          const parts = content.split(/\s|\n/);
-          const raceNumber = parts.find(p => /^R\d+$/i.test(p));
-          const startTime = parts.find(p => /^\d{1,2}:\d{2}$/.test(p));
-
-          if (raceNumber && startTime) {
-            races.push({
-              raceNumber: raceNumber.trim(),
-              startTime: startTime.trim(),
-              raceURL
-            });
-          }
-        });
-
-        if (trackName && races.length > 0) {
-          const actualDate = extractDateFromURL(races[0].raceURL);
-          data.push({
-            date: actualDate,
-            track: trackName,
-            races
+        if (raceNumber && startTime) {
+          races.push({
+            raceNumber: raceNumber.trim(),
+            startTime: startTime.trim(),
+            raceURL
           });
         }
       });
 
-      return data;
+      if (trackName && races.length > 0) {
+        data.push({
+          track: trackName,
+          races
+        });
+      }
     });
 
-    logger.info(" Race data successfully extracted.");
-    logger.info(JSON.stringify(raceData, null, 2));
+    return data;
+  });
+};
 
-    await browser.close();
-    logger.info("Browser closed. Scraping completed.");
+const saveToCSV = (flatData, actualDate) => {
+  const exportBaseDir = path.resolve('./exports');
+  const exportDir = path.join(exportBaseDir, actualDate);
+  if (!fs.existsSync(exportDir)) fs.mkdirSync(exportDir, { recursive: true });
 
-    //  Convert to CSV and save in daily folder
-    const flatData = raceData.flatMap(track =>
-      track.races.map(race => ({
-        date: track.date,
-        track: track.track,
-        raceNumber: race.raceNumber,
-        startTime: race.startTime,
-        raceURL: race.raceURL
-      }))
-    );
+  const now = new Date();
+  const timeStamp = `${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
+  const filename = path.join(exportDir, `greyhound-races-${timeStamp}.csv`);
 
-    // Base exports directory
-    const exportBaseDir = path.resolve('./exports');
+  const parser = new Parser({ fields: ['date', 'track', 'raceNumber', 'startTime', 'raceURL'] });
+  const csv = parser.parse(flatData);
+  fs.writeFileSync(filename, csv);
+  logger.info(`CSV saved to ${filename}`);
+};
 
-    // Use the first valid date from raceData or today's date
-    const folderDate = raceData[0]?.date || new Date().toISOString().split('T')[0];
-    const exportDir = path.join(exportBaseDir, folderDate);
 
-    // Create the folder if it doesn't exist
-    if (!fs.existsSync(exportDir)) fs.mkdirSync(exportDir, { recursive: true });
+const scrapeGreyhoundRaceList = async () => {
+  const browser = await puppeteer.launch({ headless: false });
+  const page = await browser.newPage();
 
-    const filename = path.join(exportDir, 'greyhound-races.csv');
+  try {
+    logger.info("Navigating to Greyhound Racing page...");
+    await page.goto('https://www.odds.com.au/greyhounds/', { waitUntil: 'networkidle2' });
 
-    try {
-      const parser = new Parser({ fields: ['date', 'track', 'raceNumber', 'startTime', 'raceURL'] });
-      const csv = parser.parse(flatData);
-      fs.writeFileSync(filename, csv);
-      logger.info(` CSV saved to ${filename}`);
-    } catch (csvError) {
-      logger.error(` Error generating CSV: ${csvError.message}`);
+    await page.waitForSelector('.date-selectors__item', { timeout: 10000 });
+    const tabs = await page.$$('.date-selectors__item');
+
+    for (let i = 0; i < tabs.length; i++) {
+      logger.info(`Scraping tab ${i + 1} of ${tabs.length}`);
+
+      const currentTabs = await page.$$('.date-selectors__item');
+      const selected = await currentTabs[i].evaluate(el => el.classList.contains('selected'));
+      if (!selected) {
+        await currentTabs[i].click();
+        await new Promise(resolve => setTimeout(resolve, 2000)); // wait after click
+      }
+
+      await page.waitForSelector('.racing-meeting-rows__right-inner', { timeout: 20000 });
+
+      const raceData = await scrapeTab(page);
+
+      if (!raceData.length) {
+        logger.warn(`No data found on tab ${i + 1}`);
+        continue;
+      }
+
+      const firstRaceURL = raceData[0].races[0]?.raceURL || '';
+      const actualDate = extractDateFromURL(firstRaceURL);
+
+      const flatData = raceData.flatMap(track =>
+        track.races.map(race => ({
+          date: actualDate,
+          track: track.track,
+          raceNumber: race.raceNumber,
+          startTime: race.startTime,
+          raceURL: race.raceURL
+        }))
+      );
+
+      saveToCSV(flatData, actualDate);
     }
 
+    await browser.close();
+    logger.info("All tabs scraped and browser closed.");
   } catch (error) {
-    logger.error(` Scraping error: ${error.message}`);
+    logger.error(`Scraping error: ${error.message}`);
+    await browser.close();
   }
 };
 
