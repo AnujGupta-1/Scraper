@@ -4,6 +4,8 @@ import fs from 'fs';
 import path from 'path';
 import { Parser } from 'json2csv';
 
+const TEST_MODE = process.env.TEST_MODE === 'true';
+
 const extractDateFromURL = (url) => {
   const match = url.match(/-(\d{8})\//);
   if (match) {
@@ -70,26 +72,38 @@ const saveToCSV = (flatData, actualDate) => {
   logger.info(`CSV saved to ${filename}`);
 };
 
-
-const scrapeGreyhoundRaceList = async () => {
+export const scrapeGreyhoundRaceList = async () => {
   const browser = await puppeteer.launch({ headless: false });
   const page = await browser.newPage();
+  const allFlatData = [];
 
   try {
-    logger.info("Navigating to Greyhound Racing page...");
+    logger.info(` Scraper started with TEST_MODE=${TEST_MODE}`);
     await page.goto('https://www.odds.com.au/greyhounds/', { waitUntil: 'networkidle2' });
 
     await page.waitForSelector('.date-selectors__item', { timeout: 10000 });
     const tabs = await page.$$('.date-selectors__item');
+    logger.info(`Tabs found: ${tabs.length}`);
 
     for (let i = 0; i < tabs.length; i++) {
-      logger.info(`Scraping tab ${i + 1} of ${tabs.length}`);
+      if (TEST_MODE && i > 0) {
+        logger.info("Test mode active: only scraping the first tab.");
+        break;
+      }
+
+      logger.info(` Scraping tab ${i + 1} of ${tabs.length}`);
 
       const currentTabs = await page.$$('.date-selectors__item');
-      const selected = await currentTabs[i].evaluate(el => el.classList.contains('selected'));
+      const tab = currentTabs[i];
+      if (!tab) {
+        logger.warn(`Tab index ${i} not found`);
+        continue;
+      }
+
+      const selected = await tab.evaluate(el => el.classList.contains('selected'));
       if (!selected) {
-        await currentTabs[i].click();
-        await new Promise(resolve => setTimeout(resolve, 2000)); // wait after click
+        await tab.click();
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
 
       await page.waitForSelector('.racing-meeting-rows__right-inner', { timeout: 20000 });
@@ -105,23 +119,29 @@ const scrapeGreyhoundRaceList = async () => {
       const actualDate = extractDateFromURL(firstRaceURL);
 
       const flatData = raceData.flatMap(track =>
-        track.races.map(race => ({
-          date: actualDate,
-          track: track.track,
-          raceNumber: race.raceNumber,
-          startTime: race.startTime,
-          raceURL: race.raceURL
-        }))
+        track.races.map(race => {
+          const entry = {
+            date: actualDate,
+            track: track.track,
+            raceNumber: race.raceNumber,
+            startTime: race.startTime,
+            raceURL: race.raceURL
+          };
+          allFlatData.push(entry);
+          return entry;
+        })
       );
 
       saveToCSV(flatData, actualDate);
     }
 
     await browser.close();
-    logger.info("All tabs scraped and browser closed.");
+    logger.info(" All tabs scraped and browser closed.");
+    return allFlatData;
   } catch (error) {
-    logger.error(`Scraping error: ${error.message}`);
+    logger.error(` Scraping error: ${error.message}`);
     await browser.close();
+    return [];
   }
 };
 
