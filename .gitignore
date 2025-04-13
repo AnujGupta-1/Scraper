@@ -1,0 +1,19 @@
+# Ignore system stuff
+*.log
+.DS_Store
+Thumbs.db
+
+# Ignore dependencies
+node_modules/
+.gradle/
+.android/
+
+# Ignore personal config
+.vscode/
+.env
+*.local
+*.swp
+
+# OS junk
+AppData/
+*.tmp
