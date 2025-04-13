@@ -10,14 +10,25 @@ const scrapeGreyhoundRaceList = async () => {
     logger.info("Navigating to Greyhound Racing page...");
     await page.goto('https://www.odds.com.au/greyhounds/', { waitUntil: 'networkidle2' });
 
-    // Wait until full track list and race links are loaded
+    // Wait for main container and date selectors
     await page.waitForSelector('.racing-meeting-rows__right-inner', { timeout: 20000 });
+    await page.waitForSelector('.date-selectors', { timeout: 10000 });
 
-    logger.info("Extracting structured race data from right-inner rows...");
+    logger.info("Extracting structured race data from page...");
 
     const raceData = await page.evaluate(() => {
       const baseUrl = 'https://www.odds.com.au';
-      const tracks = [];
+      const data = [];
+
+      // Helper to extract the date from a race URL
+      function extractDateFromURL(url) {
+        const match = url.match(/-(\d{8})\//); // e.g., "-20250413/"
+        if (match) {
+          const raw = match[1];
+          return `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`;
+        }
+        return 'Unknown';
+      }
 
       const trackNames = Array.from(document.querySelectorAll('.racing-meeting-rows__main-left > div'))
         .map(div => div.innerText.trim());
@@ -31,22 +42,31 @@ const scrapeGreyhoundRaceList = async () => {
 
         raceLinks.forEach(link => {
           const raceURL = baseUrl + link.getAttribute('href');
-          const content = link.innerText.trim(); // e.g., "R1\n17:14" or "R1 17:14"
-          const parts = content.split(/\s|\n/); // handle both space or newline
+          const content = link.innerText.trim();
+          const parts = content.split(/\s|\n/);
           const raceNumber = parts.find(p => /^R\d+$/i.test(p));
           const startTime = parts.find(p => /^\d{1,2}:\d{2}$/.test(p));
 
           if (raceNumber && startTime) {
-            races.push({ raceNumber, startTime, raceURL });
+            races.push({
+              raceNumber: raceNumber.trim(),
+              startTime: startTime.trim(),
+              raceURL
+            });
           }
         });
 
         if (trackName && races.length > 0) {
-          tracks.push({ track: trackName, races });
+          const actualDate = extractDateFromURL(races[0].raceURL);
+          data.push({
+            date: actualDate,
+            track: trackName,
+            races
+          });
         }
       });
 
-      return tracks;
+      return data;
     });
 
     logger.info("✅ Race data successfully extracted.");
