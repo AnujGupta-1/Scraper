@@ -1,13 +1,15 @@
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-import { scrapeGreyhoundRaceList } from './index.js';
+import { Parser } from 'json2csv';
 import fs from 'fs';
 import path from 'path';
-import { Parser } from 'json2csv';
-import logger from './scraperLogger.js';
-import csvParser from 'csv-parser';
+import logger from '../src/scraperLogger.js';
 
 puppeteer.use(StealthPlugin());
+
+const testURL = 'https://www.odds.com.au/greyhounds/sale-20250420/national-greyhound-adoption-month-race-1/';
+const testTrack = 'Sale';
+const testRaceNumber = 'R1';
 
 const scrapeRaceDetails = async (url, page, track, raceNumber) => {
   try {
@@ -37,7 +39,7 @@ const scrapeRaceDetails = async (url, page, track, raceNumber) => {
             return '-';
           })
         );
-
+        
         result.push({
           track,
           raceNumber,
@@ -70,6 +72,7 @@ const scrapeRaceDetails = async (url, page, track, raceNumber) => {
       if (placeBtn) {
         placeBtn.click();
         return true;
+        
       }
       return false;
     });
@@ -78,11 +81,11 @@ const scrapeRaceDetails = async (url, page, track, raceNumber) => {
       await new Promise(resolve => setTimeout(resolve, 1500));
       await page.waitForSelector('.octd-right__main-row', { timeout: 20000 });
     }
-
     logger.info(`Place button clicked`);
 
     const placeData = await extractOdds();
 
+    // Add betType to each
     winData.forEach(r => r.betType = 'Win');
     placeData.forEach(r => r.betType = 'Place');
 
@@ -97,80 +100,26 @@ const scrapeRaceDetails = async (url, page, track, raceNumber) => {
   }
 };
 
-const saveRaceDetailsCSV = (allRaceDetails, folderDate) => {
+const saveCSV = (data, filename) => {
+  const folderDate = new Date().toISOString().split('T')[0];
   const exportDir = path.resolve(`./exports/${folderDate}`);
   if (!fs.existsSync(exportDir)) fs.mkdirSync(exportDir, { recursive: true });
 
-  const filePath = path.join(exportDir, `race-details.csv`);
-  const parser = new Parser({
-    fields: ['track', 'raceNumber', 'runnerName', 'betType', 'bet365', 'ubet', 'tabtouch', 'betr', 'boombet', 'sportsbet', 'betfair_back', 'betfair_lay', 'picketbet', 'ladbrokes', 'pointsbet', 'neds', 'colossal']
-  });
-
-  const csv = parser.parse(allRaceDetails);
-  fs.writeFileSync(filePath, csv);
-  logger.info(`Race details saved to ${filePath}`);
+  const filePath = path.join(exportDir, filename);
+  const parser = new Parser({ fields: Object.keys(data[0]) });
+  fs.writeFileSync(filePath, parser.parse(data));
+  logger.info(`Test CSV saved to ${filePath}`);
 };
 
-const loadRaceURLsFromCSV = (csvPath) => {
-  return new Promise((resolve, reject) => {
-    const raceData = [];
-    fs.createReadStream(csvPath)
-      .pipe(csvParser())
-      .on('data', (row) => {
-        if (row.raceURL && row.track && row.raceNumber) {
-          raceData.push({ url: row.raceURL, track: row.track, raceNumber: row.raceNumber, date: row.date });
-        }
-      })
-      .on('end', () => {
-        resolve(raceData);
-      })
-      .on('error', reject);
-  });
-};
-
-const findLatestRaceListCSV = (folderDate) => {
-  const folderPath = path.resolve(`./exports/${folderDate}`);
-  if (!fs.existsSync(folderPath)) return null;
-
-  const files = fs.readdirSync(folderPath)
-    .filter(f => f.startsWith('greyhound-races-') && f.endsWith('.csv'))
-    .map(f => ({ file: f, time: fs.statSync(path.join(folderPath, f)).mtime.getTime() }))
-    .sort((a, b) => b.time - a.time);
-
-  return files.length > 0 ? path.join(folderPath, files[0].file) : null;
-};
-
-const runRaceDetailsScraper = async () => {
-  const today = new Date();
-  const folderDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-
-  let raceListCSV = findLatestRaceListCSV(folderDate);
-
-  if (!raceListCSV) {
-    logger.info(`Race list CSV not found. Running scrapeGreyhoundRaceList to generate it.`);
-    await scrapeGreyhoundRaceList();
-    raceListCSV = findLatestRaceListCSV(folderDate);
-  }
-
-  if (!raceListCSV) {
-    logger.error('Failed to locate or generate race list CSV.');
-    return;
-  }
-
+const runTest = async () => {
   const browser = await puppeteer.launch({ headless: false });
   const page = await browser.newPage();
-  const allRaceDetails = [];
 
-  const raceEntries = await loadRaceURLsFromCSV(raceListCSV);
-
-  for (const { url, track, raceNumber } of raceEntries) {
-    logger.info(`Scraping details for: ${url}`);
-    const raceDetails = await scrapeRaceDetails(url, page, track, raceNumber);
-    allRaceDetails.push(...raceDetails);
-  }
-
+  const all = await scrapeRaceDetails(testURL, page, testTrack, testRaceNumber);
   await browser.close();
-  saveRaceDetailsCSV(allRaceDetails, folderDate);
+
+  if (all.length > 0) saveCSV(all, 'test-race-details.csv');
+  else logger.warn('No test data scraped.');
 };
 
-runRaceDetailsScraper();
+runTest();

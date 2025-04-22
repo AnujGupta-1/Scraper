@@ -4,8 +4,6 @@ import fs from 'fs';
 import path from 'path';
 import { Parser } from 'json2csv';
 
-const TEST_MODE = process.env.TEST_MODE === 'true';
-
 const extractDateFromURL = (url) => {
   const match = url.match(/-(\d{8})\//);
   if (match) {
@@ -13,6 +11,14 @@ const extractDateFromURL = (url) => {
     return `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`;
   }
   return 'Unknown';
+};
+
+const getTodayDateString = () => {
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
 };
 
 const scrapeTab = async (page) => {
@@ -78,19 +84,16 @@ export const scrapeGreyhoundRaceList = async () => {
   const allFlatData = [];
 
   try {
-    logger.info(` Scraper started with TEST_MODE=${TEST_MODE}`);
+    logger.info(` Scraper started`);
     await page.goto('https://www.odds.com.au/greyhounds/', { waitUntil: 'networkidle2' });
 
     await page.waitForSelector('.date-selectors__item', { timeout: 10000 });
     const tabs = await page.$$('.date-selectors__item');
     logger.info(`Tabs found: ${tabs.length}`);
 
-    for (let i = 0; i < tabs.length; i++) {
-      if (TEST_MODE && i > 0) {
-        logger.info("Test mode active: only scraping the first tab.");
-        break;
-      }
+    const todayStr = getTodayDateString();
 
+    for (let i = 0; i < tabs.length; i++) {
       logger.info(` Scraping tab ${i + 1} of ${tabs.length}`);
 
       const currentTabs = await page.$$('.date-selectors__item');
@@ -117,6 +120,11 @@ export const scrapeGreyhoundRaceList = async () => {
 
       const firstRaceURL = raceData[0].races[0]?.raceURL || '';
       const actualDate = extractDateFromURL(firstRaceURL);
+
+      if (actualDate !== todayStr) {
+        logger.info(`Skipping tab ${i + 1} — not today's races (${actualDate})`);
+        continue;
+      }
 
       const flatData = raceData.flatMap(track =>
         track.races.map(race => {
