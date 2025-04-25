@@ -1,6 +1,6 @@
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-import { scrapeGreyhoundRaceList } from './index.js';
+import { scrapeGreyhoundRaceList } from './greyhoundRaceListScraper.js';
 import fs from 'fs';
 import path from 'path';
 import { Parser } from 'json2csv';
