@@ -9,13 +9,26 @@ import csvParser from 'csv-parser';
 
 puppeteer.use(StealthPlugin());
 
-const scrapeRaceDetails = async (url, browser, track, raceNumber) => {
-  const page = await browser.newPage();
+const MAX_CONCURRENT_PAGES = 5;
+
+const scrapeRaceDetails = async (page, url, track, raceNumber) => {
   try {
+    logger.info(`Scraping ${track} Race ${raceNumber} — ${url}`);
+
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36');
     await page.setViewport({ width: 1280, height: 800 });
-    await page.goto(url, { waitUntil: 'networkidle0', timeout: 60000 });
 
+    await page.setRequestInterception(true);
+    page.on('request', (req) => {
+      try {
+        const blockTypes = ['image', 'stylesheet', 'font'];
+        blockTypes.includes(req.resourceType()) ? req.abort() : req.continue();
+      } catch (err) {
+        logger.warn(`⚠️ Request error on ${track} R${raceNumber}: ${err.message}`);
+      }
+    });
+
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await page.waitForSelector('.octd-right__main-row', { timeout: 20000 });
 
     const runnerNames = await page.$$eval('.competitor-details a', els =>
@@ -24,10 +37,7 @@ const scrapeRaceDetails = async (url, browser, track, raceNumber) => {
 
     const extractOdds = async () => {
       const rows = await page.$$('.octd-right__main-row');
-      const result = [];
-
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
+      return Promise.all(rows.map(async (row, i) => {
         const cells = await row.$$eval('.octd-right__main-cell', cells =>
           cells.map(cell => {
             const value = cell.querySelector('.octd-right__odds-value-cell');
@@ -39,7 +49,7 @@ const scrapeRaceDetails = async (url, browser, track, raceNumber) => {
           })
         );
 
-        result.push({
+        return {
           track,
           raceNumber,
           runnerName: runnerNames[i] || `Runner ${i + 1}`,
@@ -56,15 +66,14 @@ const scrapeRaceDetails = async (url, browser, track, raceNumber) => {
           pointsbet: cells[10] || '-',
           neds: cells[11] || '-',
           colossal: cells[12] || '-'
-        });
-      }
-
-      return result;
+        };
+      }));
     };
 
     const winData = await extractOdds();
+    winData.forEach(r => r.betType = 'Win');
 
-    // Toggle to 'Place' using text match fallback
+    let placeData = [];
     const placeClicked = await page.evaluate(() => {
       const buttons = Array.from(document.querySelectorAll('button.bettype-button'));
       const placeBtn = buttons.find(b => b.textContent.trim().toLowerCase() === 'place');
@@ -75,33 +84,32 @@ const scrapeRaceDetails = async (url, browser, track, raceNumber) => {
       return false;
     });
 
-    let placeData = [];
     if (placeClicked) {
       await new Promise(resolve => setTimeout(resolve, 1500));
-      const placeOddsLoaded = await page.$('.octd-right__main-row');
-      if (placeOddsLoaded) {
+      const rowsExist = await page.$('.octd-right__main-row');
+      if (rowsExist) {
         await page.waitForSelector('.octd-right__main-row', { timeout: 10000 });
-        logger.info(`Place odds visible`);
         placeData = await extractOdds();
         placeData.forEach(r => r.betType = 'Place');
       } else {
-        logger.warn(`Place odds did not load for ${track} Race ${raceNumber}`);
+        logger.warn(`⚠️ Place odds not visible for ${track} Race ${raceNumber}`);
       }
-    } else {
-      logger.warn(`Place button not found for ${track} Race ${raceNumber}`);
     }
 
-    winData.forEach(r => r.betType = 'Win');
-    return [...winData, ...placeData];
+    const combined = [...winData, ...placeData];
+    logger.info(`✅ Finished ${track} Race ${raceNumber} — Records: ${combined.length}`);
+    return combined;
   } catch (err) {
-    logger.error(`Error scraping ${url}: ${err.message}`);
-    const html = await page.content();
-    const errorFile = `./exports/details/debug-${Date.now()}.html`;
-    fs.writeFileSync(errorFile, html);
-    logger.info(`Saved error page HTML to ${errorFile}`);
+    logger.error(`❌ Error scraping ${url}: ${err.message}`);
+    try {
+      const html = await page.content();
+      const errorFile = `./exports/details/debug-${Date.now()}.html`;
+      fs.writeFileSync(errorFile, html);
+      logger.info(`💾 Saved error page to ${errorFile}`);
+    } catch (_) {}
     return [];
   } finally {
-    await page.close(); // cleanup page context after each race
+    await page.close(); // always close page
   }
 };
 
@@ -116,7 +124,7 @@ const saveRaceDetailsCSV = (allRaceDetails, folderDate) => {
 
   const csv = parser.parse(allRaceDetails);
   fs.writeFileSync(filePath, csv);
-  logger.info(`Race details saved to ${filePath}`);
+  logger.info(`✅ Race details saved to ${filePath} — Total: ${allRaceDetails.length}`);
 };
 
 const loadRaceURLsFromCSV = (csvPath) => {
@@ -150,36 +158,52 @@ const runRaceDetailsScraper = async () => {
   const today = new Date();
   const folderDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
-  let raceListCSV = findLatestRaceListCSV(folderDate);
+  logger.info(`📅 Starting scraper for: ${folderDate}`);
 
+  let raceListCSV = findLatestRaceListCSV(folderDate);
   if (!raceListCSV) {
-    logger.info(`Race list CSV not found. Running scrapeGreyhoundRaceList to generate it.`);
+    logger.info(`🔍 Race list not found, generating with scrapeGreyhoundRaceList...`);
     await scrapeGreyhoundRaceList();
     raceListCSV = findLatestRaceListCSV(folderDate);
   }
 
   if (!raceListCSV) {
-    logger.error('Failed to locate or generate race list CSV.');
+    logger.error('❌ Could not find or generate race list CSV.');
     return;
   }
 
-  const browser = await puppeteer.launch({
-    headless: false,
-    protocolTimeout: 60000 // avoid network.setUserAgentOverride timeout
-  });
-
-  const allRaceDetails = [];
   const raceEntries = await loadRaceURLsFromCSV(raceListCSV);
+  logger.info(`📄 Loaded ${raceEntries.length} races from ${raceListCSV}`);
 
-  for (const { url, track, raceNumber } of raceEntries) {
-    logger.info(`Scraping details for: ${url}`);
-    try {
-      const raceDetails = await scrapeRaceDetails(url, browser, track, raceNumber);
-      allRaceDetails.push(...raceDetails);
-    } catch (err) {
-      logger.error(`Failed to scrape race: ${err.message}`);
-    }
+  if (!raceEntries.length) {
+    logger.warn('⚠️ No races to scrape.');
+    return;
   }
+
+  const browser = await puppeteer.launch({ headless: false, protocolTimeout: 60000 });
+  const allRaceDetails = [];
+
+  const scrapeInBatches = async (entries, batchSize) => {
+    for (let i = 0; i < entries.length; i += batchSize) {
+      const batch = entries.slice(i, i + batchSize);
+      logger.info(`🚀 Starting batch ${i / batchSize + 1} (${batch.length} races)`);
+
+      const pages = await Promise.all(batch.map(() => browser.newPage()));
+
+      const results = await Promise.allSettled(
+        batch.map((entry, idx) =>
+          scrapeRaceDetails(pages[idx], entry.url, entry.track, entry.raceNumber)
+        )
+      );
+
+      for (const res of results) {
+        if (res.status === 'fulfilled') allRaceDetails.push(...res.value);
+        else logger.error(`❌ Scrape failed: ${res.reason?.message}`);
+      }
+    }
+  };
+
+  await scrapeInBatches(raceEntries, MAX_CONCURRENT_PAGES);
 
   await browser.close();
   saveRaceDetailsCSV(allRaceDetails, folderDate);
