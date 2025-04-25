@@ -117,7 +117,10 @@ const saveRaceDetailsCSV = (allRaceDetails, folderDate) => {
   const exportDir = path.resolve(`./exports/${folderDate}`);
   if (!fs.existsSync(exportDir)) fs.mkdirSync(exportDir, { recursive: true });
 
-  const filePath = path.join(exportDir, `race-details.csv`);
+  const now = new Date(new Date().toLocaleString('en-AU', { timeZone: 'Australia/Brisbane' }));
+  const timestamp = `${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
+  const filePath = path.join(exportDir, `race-details-${timestamp}.csv`);
+
   const parser = new Parser({
     fields: ['track', 'raceNumber', 'runnerName', 'betType', 'bet365', 'ubet', 'tabtouch', 'betr', 'boombet', 'sportsbet', 'betfair_back', 'betfair_lay', 'picketbet', 'ladbrokes', 'pointsbet', 'neds', 'colossal']
   });
@@ -209,4 +212,4 @@ const runRaceDetailsScraper = async () => {
   saveRaceDetailsCSV(allRaceDetails, folderDate);
 };
 
-runRaceDetailsScraper();
+export {runRaceDetailsScraper};
