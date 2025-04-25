@@ -24,7 +24,7 @@ const scrapeRaceDetails = async (page, url, track, raceNumber) => {
         const blockTypes = ['image', 'stylesheet', 'font'];
         blockTypes.includes(req.resourceType()) ? req.abort() : req.continue();
       } catch (err) {
-        logger.warn(`⚠️ Request error on ${track} R${raceNumber}: ${err.message}`);
+        logger.warn(` Request error on ${track} R${raceNumber}: ${err.message}`);
       }
     });
 
@@ -92,20 +92,20 @@ const scrapeRaceDetails = async (page, url, track, raceNumber) => {
         placeData = await extractOdds();
         placeData.forEach(r => r.betType = 'Place');
       } else {
-        logger.warn(`⚠️ Place odds not visible for ${track} Race ${raceNumber}`);
+        logger.warn(` Place odds not visible for ${track} Race ${raceNumber}`);
       }
     }
 
     const combined = [...winData, ...placeData];
-    logger.info(`✅ Finished ${track} Race ${raceNumber} — Records: ${combined.length}`);
+    logger.info(` Finished ${track} Race ${raceNumber} — Records: ${combined.length}`);
     return combined;
   } catch (err) {
-    logger.error(`❌ Error scraping ${url}: ${err.message}`);
+    logger.error(` Error scraping ${url}: ${err.message}`);
     try {
       const html = await page.content();
       const errorFile = `./exports/details/debug-${Date.now()}.html`;
       fs.writeFileSync(errorFile, html);
-      logger.info(`💾 Saved error page to ${errorFile}`);
+      logger.info(` Saved error page to ${errorFile}`);
     } catch (_) {}
     return [];
   } finally {
@@ -133,7 +133,7 @@ const saveRaceDetailsCSV = (allRaceDetails, folderDate) => {
 
   const csv = parser.parse(allRaceDetails);
   fs.writeFileSync(filename, csv);
-  logger.info(`✅ Race details saved to ${filename} — Total: ${allRaceDetails.length}`);
+  logger.info(` Race details saved to ${filename} — Total: ${allRaceDetails.length}`);
 };
 
 
@@ -164,29 +164,29 @@ const findLatestRaceListCSV = (folderDate) => {
   return files.length > 0 ? path.join(folderPath, files[0].file) : null;
 };
 
-const runRaceDetailsScraper = async () => {
+export const runRaceDetailsScraper = async () => {
   const today = new Date();
   const folderDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
-  logger.info(`📅 Starting scraper for: ${folderDate}`);
+  logger.info(` Starting scraper for: ${folderDate}`);
 
   let raceListCSV = findLatestRaceListCSV(folderDate);
   if (!raceListCSV) {
-    logger.info(`🔍 Race list not found, generating with scrapeGreyhoundRaceList...`);
+    logger.info(` Race list not found, generating with scrapeGreyhoundRaceList...`);
     await scrapeGreyhoundRaceList();
     raceListCSV = findLatestRaceListCSV(folderDate);
   }
 
   if (!raceListCSV) {
-    logger.error('❌ Could not find or generate race list CSV.');
+    logger.error(' Could not find or generate race list CSV.');
     return;
   }
 
   const raceEntries = await loadRaceURLsFromCSV(raceListCSV);
-  logger.info(`📄 Loaded ${raceEntries.length} races from ${raceListCSV}`);
+  logger.info(` Loaded ${raceEntries.length} races from ${raceListCSV}`);
 
   if (!raceEntries.length) {
-    logger.warn('⚠️ No races to scrape.');
+    logger.warn(' No races to scrape.');
     return;
   }
 
@@ -208,7 +208,7 @@ const runRaceDetailsScraper = async () => {
 
       for (const res of results) {
         if (res.status === 'fulfilled') allRaceDetails.push(...res.value);
-        else logger.error(`❌ Scrape failed: ${res.reason?.message}`);
+        else logger.error(` Scrape failed: ${res.reason?.message}`);
       }
     }
   };
@@ -218,7 +218,5 @@ const runRaceDetailsScraper = async () => {
   await browser.close();
   saveRaceDetailsCSV(allRaceDetails, folderDate);
 };
-
-//export {runRaceDetailsScraper};
 
 runRaceDetailsScraper();
