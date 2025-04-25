@@ -68,15 +68,14 @@ const saveToCSV = (flatData, actualDate) => {
   const exportDir = path.join(exportBaseDir, actualDate);
   if (!fs.existsSync(exportDir)) fs.mkdirSync(exportDir, { recursive: true });
 
-  const now = new Date();
-  const timeStamp = `${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
-  const filename = path.join(exportDir, `greyhound-races-${timeStamp}.csv`);
+  const filename = path.join(exportDir, 'greyhound-races.csv');
 
   const parser = new Parser({ fields: ['date', 'track', 'raceNumber', 'startTime', 'raceURL'] });
   const csv = parser.parse(flatData);
   fs.writeFileSync(filename, csv);
-  logger.info(`CSV saved to ${filename}`);
+  logger.info(`📄 Race list saved to ${filename}`);
 };
+
 
 export const scrapeGreyhoundRaceList = async () => {
   const browser = await puppeteer.launch({ headless: false });
@@ -153,3 +152,4 @@ export const scrapeGreyhoundRaceList = async () => {
   }
 };
 
+scrapeGreyhoundRaceList();

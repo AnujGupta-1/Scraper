@@ -9,7 +9,7 @@ import csvParser from 'csv-parser';
 
 puppeteer.use(StealthPlugin());
 
-const MAX_CONCURRENT_PAGES = 5;
+const MAX_CONCURRENT_PAGES = 10;
 
 const scrapeRaceDetails = async (page, url, track, raceNumber) => {
   try {
@@ -114,21 +114,28 @@ const scrapeRaceDetails = async (page, url, track, raceNumber) => {
 };
 
 const saveRaceDetailsCSV = (allRaceDetails, folderDate) => {
-  const exportDir = path.resolve(`./exports/${folderDate}`);
+  const exportBaseDir = path.resolve('./exports');
+  const exportDir = path.join(exportBaseDir, folderDate);
   if (!fs.existsSync(exportDir)) fs.mkdirSync(exportDir, { recursive: true });
 
-  const now = new Date(new Date().toLocaleString('en-AU', { timeZone: 'Australia/Brisbane' }));
-  const timestamp = `${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
-  const filePath = path.join(exportDir, `race-details-${timestamp}.csv`);
+  const now = new Date();
+  const timeStamp = `${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
+  const filename = path.join(exportDir, `race-details-${timeStamp}.csv`);
 
   const parser = new Parser({
-    fields: ['track', 'raceNumber', 'runnerName', 'betType', 'bet365', 'ubet', 'tabtouch', 'betr', 'boombet', 'sportsbet', 'betfair_back', 'betfair_lay', 'picketbet', 'ladbrokes', 'pointsbet', 'neds', 'colossal']
+    fields: [
+      'track', 'raceNumber', 'runnerName', 'betType',
+      'bet365', 'ubet', 'tabtouch', 'betr', 'boombet', 'sportsbet',
+      'betfair_back', 'betfair_lay', 'picketbet', 'ladbrokes',
+      'pointsbet', 'neds', 'colossal'
+    ]
   });
 
   const csv = parser.parse(allRaceDetails);
-  fs.writeFileSync(filePath, csv);
-  logger.info(`✅ Race details saved to ${filePath} — Total: ${allRaceDetails.length}`);
+  fs.writeFileSync(filename, csv);
+  logger.info(`✅ Race details saved to ${filename} — Total: ${allRaceDetails.length}`);
 };
+
 
 const loadRaceURLsFromCSV = (csvPath) => {
   return new Promise((resolve, reject) => {
@@ -212,4 +219,6 @@ const runRaceDetailsScraper = async () => {
   saveRaceDetailsCSV(allRaceDetails, folderDate);
 };
 
-export {runRaceDetailsScraper};
+//export {runRaceDetailsScraper};
+
+runRaceDetailsScraper();
