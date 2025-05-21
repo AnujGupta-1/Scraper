@@ -96,13 +96,17 @@ export default function ResultsTable() {
                 <TableCell>Place</TableCell>
                 <TableCell>Name</TableCell>
                 <TableCell>Time</TableCell>
+                <TableCell>Margin</TableCell>
+                <TableCell>Split</TableCell>
+                <TableCell>In Run</TableCell>
+                <TableCell>SP</TableCell>
                 {/* Add more cells if your CSV has more columns */}
               </TableRow>
             </TableHead>
             <TableBody>
               {paginatedRows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} align="center">No results found for this selection.</TableCell>
+                  <TableCell colSpan={9} align="center">No results found for this selection.</TableCell>
                 </TableRow>
               ) : (
                 paginatedRows.map((row, i) => (
@@ -112,6 +116,10 @@ export default function ResultsTable() {
                     <TableCell>{row.place}</TableCell>
                     <TableCell>{row.name}</TableCell>
                     <TableCell>{row.time}</TableCell>
+                    <TableCell>{row.margin}</TableCell>
+                    <TableCell>{row.split}</TableCell>
+                    <TableCell>{row.inRun}</TableCell>
+                    <TableCell>{row.sp}</TableCell> 
                   </TableRow>
                 ))
               )}

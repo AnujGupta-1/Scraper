@@ -67,13 +67,24 @@ export default function RaceDetailsTable({ selectedRace }) {
                 <TableCell>Bet365</TableCell>
                 <TableCell>Sportsbet</TableCell>
                 <TableCell>Ladbrokes</TableCell>
+                <TableCell>Neds</TableCell>
+                <TableCell>Pointsbet</TableCell>
+                <TableCell>Colossal</TableCell>
+                <TableCell>Betfair Back</TableCell>
+                <TableCell>Betfair Lay</TableCell>
+                <TableCell>Picketbet</TableCell>
+                <TableCell>Boombet</TableCell>
+                <TableCell>Ubert</TableCell>
+                <TableCell>Tabtouch</TableCell>
+                <TableCell>Betr</TableCell>
+              
                 {/* Add/remove columns as needed for your CSV */}
               </TableRow>
             </TableHead>
             <TableBody>
               {filteredRows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} align="center">No details found for this race.</TableCell>
+                  <TableCell colSpan={15} align="center">No details found for this race.</TableCell>
                 </TableRow>
               ) : (
                 filteredRows.map((row, i) => (
@@ -83,6 +94,17 @@ export default function RaceDetailsTable({ selectedRace }) {
                     <TableCell>{row.bet365}</TableCell>
                     <TableCell>{row.sportsbet}</TableCell>
                     <TableCell>{row.ladbrokes}</TableCell>
+                    <TableCell>{row.neds}</TableCell>
+                    <TableCell>{row.pointsbet}</TableCell>
+                    <TableCell>{row.colossal}</TableCell>
+                    <TableCell>{row.betfair_back}</TableCell>
+                    <TableCell>{row.betfair_lay}</TableCell>
+                    <TableCell>{row.picketbet}</TableCell>
+                    <TableCell>{row.boombet}</TableCell>
+                    <TableCell>{row.ubert}</TableCell>
+                    <TableCell>{row.tabtouch}</TableCell>
+                    <TableCell>{row.betr}</TableCell>
+                    
                     {/* Add/remove columns as needed */}
                   </TableRow>
                 ))
