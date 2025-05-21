@@ -6,6 +6,8 @@ import cors from 'cors';
 import { scrapeGreyhoundRaceList } from './src/greyhoundRaceListScraper.js';
 import { runRaceDetailsScraper } from './src/raceDetailsScraper.js';
 
+const STATUS_FILE = path.resolve('./logs/scheduler-status.json');
+
 const app = express();
 app.use(cors());
 
@@ -62,11 +64,20 @@ app.get('/api/results', (req, res) => {
 
 // Scheduler status endpoint (stub)
 app.get('/api/scheduler-status', (req, res) => {
-  res.json({
-    running: true,
-    nextRun: "See your cron config",
-    lastError: null
-  });
+  if (fs.existsSync(STATUS_FILE)) {
+    const data = JSON.parse(fs.readFileSync(STATUS_FILE, 'utf-8'));
+    res.json(data);
+  } else {
+    res.json({
+      running: false,
+      raceListLastRun: null,
+      raceListNextRun: null,
+      raceListLastError: 'No status yet',
+      detailsLastRun: null,
+      detailsNextRun: null,
+      detailsLastError: 'No status yet'
+    });
+  }
 });
 
 app.post('/api/trigger-scrape', async (req, res) => {
