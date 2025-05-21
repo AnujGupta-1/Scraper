@@ -152,7 +152,7 @@ const loadRaceURLsFromCSV = (csvPath) => {
   });
 };
 
-const findLatestRaceListCSV = (folderDate) => {
+/*const findLatestRaceListCSV = (folderDate) => {
   const folderPath = path.resolve(`./exports/${folderDate}`);
   if (!fs.existsSync(folderPath)) return null;
 
@@ -162,10 +162,23 @@ const findLatestRaceListCSV = (folderDate) => {
     .sort((a, b) => b.time - a.time);
 
   return files.length > 0 ? path.join(folderPath, files[0].file) : null;
-};
+};*/
+
+const findLatestRaceListCSV = (folderDate) => {
+  const folderPath = path.resolve(`./exports/${folderDate}`);
+  if (!fs.existsSync(folderPath)) return null;
+  const files = fs.readdirSync(folderPath)
+    .filter(f => f.startsWith('greyhound-races') && f.endsWith('.csv'))
+    .map(f => ({ file: f, time: fs.statSync(path.join(folderPath, f)).mtime.getTime() }))   
+    .sort((a, b) => b.time - a.time);
+  return files.length > 0 ? path.join(folderPath, files[0].file) : null;
+}
+
 
 export const runRaceDetailsScraper = async () => {
+
   const today = new Date();
+  
   const folderDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
   logger.info(` Starting scraper for: ${folderDate}`);
