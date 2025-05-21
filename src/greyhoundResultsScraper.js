@@ -8,7 +8,10 @@ import logger from './scraperLogger.js';
 puppeteer.use(StealthPlugin());
 
 const BASE_URL = 'https://www.thegreyhoundrecorder.com.au/results/search/';
-const RESULTS_DATE = new Date().toISOString().split('T')[0];
+  function getAESTDateObj() {
+  return new Date(new Date().toLocaleString('en-AU', { timeZone: 'Australia/Brisbane' }));
+}
+const RESULTS_DATE = getAESTDateObj().toISOString().split('T')[0];
 const RESULTS_DAY_HEADING = new Date().toLocaleDateString('en-US', {
   weekday: 'long',
   month: 'long',

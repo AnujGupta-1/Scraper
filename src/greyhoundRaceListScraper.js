@@ -74,6 +74,7 @@ const saveToCSV = (flatData, actualDate) => {
   const csv = parser.parse(flatData);
   fs.writeFileSync(filename, csv);
   logger.info(`📄 Race list saved to ${filename}`);
+  
 };
 
 
@@ -119,6 +120,7 @@ export const scrapeGreyhoundRaceList = async () => {
 
       const firstRaceURL = raceData[0].races[0]?.raceURL || '';
       const actualDate = extractDateFromURL(firstRaceURL);
+      logger.info(`Comparing: actualDate = "${actualDate}" vs todayStr = "${todayStr}"`);
 
       if (actualDate !== todayStr) {
         logger.info(`Skipping tab ${i + 1} — not today's races (${actualDate})`);
@@ -140,6 +142,7 @@ export const scrapeGreyhoundRaceList = async () => {
       );
 
       saveToCSV(flatData, actualDate);
+      break;
     }
 
     await browser.close();
