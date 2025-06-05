@@ -1,57 +1,82 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Typography, Alert, Box, CircularProgress
+  Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+  Paper, CircularProgress, Alert, TextField, MenuItem
 } from '@mui/material';
-import { fetchRaceDetails } from '../api/api';
+import dayjs from 'dayjs';
+import { fetchRaceDetails, fetchRaceFiles } from '../api/api';
 
 export default function RaceDetailsTable({ selectedRace }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [availableFiles, setAvailableFiles] = useState([]);
+  const [selectedFile, setSelectedFile] = useState('');
 
-  // Helper: Load data for the selected race's date (if provided)
-  const loadData = () => {
-    if (!selectedRace) return;
-    setLoading(true);
-    setError('');
-    fetchRaceDetails(selectedRace.date)
-      .then(data => {
-        setRows(data);
-        setLoading(false);
-      })
-      .catch(() => {
-        setRows([]);
-        setLoading(false);
-        setError('Failed to load race details.');
-      });
+  const date = selectedRace?.date;
+
+  const loadFiles = async () => {
+    if (!date) return;
+    try {
+      const files = await fetchRaceFiles(date);
+      setAvailableFiles(files);
+      if (files.length > 0) setSelectedFile(files[0]); // default to first file
+    } catch {
+      setAvailableFiles([]);
+    }
   };
 
+  const loadData = async () => {
+    if (!selectedRace || !selectedFile) return;
+    setLoading(true);
+    setError('');
+    try {
+      const data = await fetchRaceDetails(selectedRace.date, selectedFile);
+      const filtered = data.filter(
+        row => row.track === selectedRace.track && row.raceNumber === selectedRace.raceNumber
+      );
+      setRows(filtered);
+    } catch {
+      setError('Failed to load race details.');
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load file list when date changes
+  useEffect(() => {
+    loadFiles();
+  }, [date]);
+
+  // Load odds when race or file changes
   useEffect(() => {
     loadData();
-    // eslint-disable-next-line
-  }, [selectedRace]);
-
-  // Auto-refresh every 60s (when race is selected)
-  useEffect(() => {
-    if (!selectedRace) return;
-    const interval = setInterval(() => loadData(), 60000);
-    return () => clearInterval(interval);
-    // eslint-disable-next-line
-  }, [selectedRace]);
+  }, [selectedRace, selectedFile]);
 
   if (!selectedRace)
     return <Typography sx={{ mt: 4 }}>Select a race above to view odds details.</Typography>;
-
-  // Filter for only the selected race (track and raceNumber)
-  const filteredRows = rows.filter(
-    row => row.track === selectedRace.track && row.raceNumber === selectedRace.raceNumber
-  );
 
   return (
     <Box sx={{ mt: 5 }}>
       <Typography variant="h6" sx={{ mb: 2 }}>
         Race Details (Odds) — {selectedRace.track} Race {selectedRace.raceNumber}
       </Typography>
+
+      <Box sx={{ mb: 2 }}>
+        <TextField
+          select
+          label="Odds Snapshot"
+          value={selectedFile}
+          onChange={e => setSelectedFile(e.target.value)}
+          sx={{ minWidth: 300 }}
+        >
+          {availableFiles.map(file => (
+            <MenuItem key={file} value={file}>{file}</MenuItem>
+          ))}
+        </TextField>
+      </Box>
+
       {error && <Alert severity="error">{error}</Alert>}
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
@@ -69,25 +94,19 @@ export default function RaceDetailsTable({ selectedRace }) {
                 <TableCell>Ladbrokes</TableCell>
                 <TableCell>Neds</TableCell>
                 <TableCell>Pointsbet</TableCell>
-                <TableCell>Colossal</TableCell>
                 <TableCell>Betfair Back</TableCell>
                 <TableCell>Betfair Lay</TableCell>
-                <TableCell>Picketbet</TableCell>
-                <TableCell>Boombet</TableCell>
-                <TableCell>Ubert</TableCell>
-                <TableCell>Tabtouch</TableCell>
                 <TableCell>Betr</TableCell>
-              
-                {/* Add/remove columns as needed for your CSV */}
+                {/* Add more as needed */}
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredRows.length === 0 ? (
+              {rows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={15} align="center">No details found for this race.</TableCell>
+                  <TableCell colSpan={10} align="center">No details found for this race.</TableCell>
                 </TableRow>
               ) : (
-                filteredRows.map((row, i) => (
+                rows.map((row, i) => (
                   <TableRow key={i}>
                     <TableCell>{row.runnerName}</TableCell>
                     <TableCell>{row.betType}</TableCell>
@@ -96,16 +115,9 @@ export default function RaceDetailsTable({ selectedRace }) {
                     <TableCell>{row.ladbrokes}</TableCell>
                     <TableCell>{row.neds}</TableCell>
                     <TableCell>{row.pointsbet}</TableCell>
-                    <TableCell>{row.colossal}</TableCell>
                     <TableCell>{row.betfair_back}</TableCell>
                     <TableCell>{row.betfair_lay}</TableCell>
-                    <TableCell>{row.picketbet}</TableCell>
-                    <TableCell>{row.boombet}</TableCell>
-                    <TableCell>{row.ubert}</TableCell>
-                    <TableCell>{row.tabtouch}</TableCell>
                     <TableCell>{row.betr}</TableCell>
-                    
-                    {/* Add/remove columns as needed */}
                   </TableRow>
                 ))
               )}

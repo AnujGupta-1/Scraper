@@ -11,6 +11,11 @@ import path from 'path';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc.js';
 import timezone from 'dayjs/plugin/timezone.js';
+import cronParser from 'cron-parser';
+console.log(cronParser); // Check available methods
+const interval = cronParser.default.parse('0 9 * * *');
+console.log(interval.next().toISOString());
+
 
 
 dayjs.extend(utc);
@@ -21,6 +26,31 @@ const STATUS_FILE = path.resolve('logs/scheduler-status.json');
 // --- Helper: Get current time in AEST ---
 function getAESTTime() {
   return dayjs().tz('Australia/Brisbane');
+}
+const raceListCron = '0 9 * * *';        // 9:00 AM daily
+const detailsCron = '0 * * * *';         // Every hour at :00, 9AM to 11PM
+const resultsCron = '10 * * * *';       // Every hour at :10, daily
+
+// --- Helper: Get next run for each cron expression ---
+// import pkg from 'cron-parser';
+// const {parseExpression} = pkg;
+
+function getNextRun(cronExpr, tz) {
+  try {
+    const interval = cronParser.default.parse(cronExpr, { tz });
+    return dayjs(interval.next().toISOString()).tz(tz).format('YYYY-MM-DD HH:mm:ss');
+  } catch (e) {
+    console.error(`❌ Failed to parse cron for ${cronExpr} with tz=${tz}: ${e.message}`);
+    return null;
+  }
+}
+
+function getAllNextRuns() {
+  return {
+    raceListNextRun: getNextRun(raceListCron, 'Australia/Brisbane'),
+    detailsNextRun: getNextRun(detailsCron, 'Australia/Brisbane'),
+    resultsNextRun: getNextRun(resultsCron, 'Australia/Brisbane'),
+  };
 }
 
 // --- Helper: Write status file, merging previous state ---
@@ -37,29 +67,6 @@ function writeStatus(update) {
   } catch (err) {
     // Optionally, log error
   }
-}
-
-// --- Helper: Get next run for each cron expression ---
-import cronParser from 'cron-parser';
-
-const raceListCron = '0 9 * * *';        // 9:00 AM daily
-const detailsCron = '0 * * * *';         // Every hour at :00, 9AM to 11PM
-const resultsCron = '58 23 * * *';       // 23:58 daily
-
-function getNextRun(cronExpr, tz) {
-  try {
-    const interval = cronParser.parseExpression(cronExpr, { tz });
-    return dayjs(interval.next().toISOString()).tz(tz).format('YYYY-MM-DD HH:mm:ss');
-  } catch {
-    return null;
-  }
-}
-function getAllNextRuns() {
-  return {
-    raceListNextRun: getNextRun(raceListCron, 'Australia/Brisbane'),
-    detailsNextRun: getNextRun(detailsCron, 'Australia/Brisbane'),
-    resultsNextRun: getNextRun(resultsCron, 'Australia/Brisbane'),
-  };
 }
 
 // --- Concurrency guards ---

@@ -7,6 +7,8 @@ import RaceDetailsTable from './components/RaceDetailsTable';
 import ResultsTable from './components/ResultsTable';
 import SchedulerStatus from './components/SchedulerStatus';
 import TriggerScrapeButton from './components/TriggerScrapeButton';
+import MergedOddsTable from './components/MergedOddsTable';
+
 
 function App() {
   const [page, setPage] = useState('overview');
@@ -22,6 +24,7 @@ function App() {
           <>
             <RaceListTable onRaceSelect={setSelectedRace} />
             <RaceDetailsTable selectedRace={selectedRace} />
+            <MergedOddsTable />
             <ResultsTable />
             <TriggerScrapeButton />
             <SchedulerStatus />

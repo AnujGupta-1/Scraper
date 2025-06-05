@@ -79,7 +79,7 @@ const saveToCSV = (flatData, actualDate) => {
 
 
 export const scrapeGreyhoundRaceList = async () => {
-  const browser = await puppeteer.launch({ headless: false });
+  const browser = await puppeteer.launch({ headless: false});
   const page = await browser.newPage();
   const allFlatData = [];
 

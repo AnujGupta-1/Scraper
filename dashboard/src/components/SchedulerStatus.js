@@ -29,23 +29,36 @@ export default function SchedulerStatus() {
   }, []);
 
   return (
-    <Box sx={{ mt: 5 }}>
-      <Card sx={{ maxWidth: 400 }}>
-        <CardContent>
-          <Typography variant="h6">Scheduler Status</Typography>
-          {loading ? (
-            <CircularProgress sx={{ mt: 2 }} />
-          ) : error ? (
-            <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>
-          ) : (
-            <>
-              <Typography>Status: {status?.running ? "Running" : "Idle"}</Typography>
-              <Typography>Next Run: {status?.nextRun || 'N/A'}</Typography>
-              <Typography>Last Error: {status?.lastError || 'None'}</Typography>
-            </>
-          )}
-        </CardContent>
-      </Card>
-    </Box>
-  );
+  <Box sx={{ mt: 5 }}>
+    <Card sx={{ maxWidth: 500 }}>
+      <CardContent>
+        <Typography variant="h6">Scheduler Status</Typography>
+        {loading ? (
+          <CircularProgress sx={{ mt: 2 }} />
+        ) : error ? (
+          <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>
+        ) : (
+          <>
+            <Typography sx={{ mt: 2 }}>🟢 Status: {status?.running ? "Running" : "Idle"}</Typography>
+
+            <Typography sx={{ mt: 2, fontWeight: 'bold' }}>Next Runs</Typography>
+            <Typography>Race List: {status?.raceListNextRun || 'N/A'}</Typography>
+            <Typography>Race Details: {status?.detailsNextRun || 'N/A'}</Typography>
+            <Typography>Race Results: {status?.resultsNextRun || 'N/A'}</Typography>
+
+            <Typography sx={{ mt: 2, fontWeight: 'bold' }}>Last Runs</Typography>
+            <Typography>Race List: {status?.raceListLastRun || 'N/A'}</Typography>
+            <Typography>Race Details: {status?.detailsLastRun || 'N/A'}</Typography>
+            <Typography>Race Results: {status?.resultsLastRun || 'N/A'}</Typography>
+
+            <Typography sx={{ mt: 2, fontWeight: 'bold' }}>Errors</Typography>
+            <Typography>Race List: {status?.raceListLastError || 'None'}</Typography>
+            <Typography>Race Details: {status?.detailsLastError || 'None'}</Typography>
+            <Typography>Race Results: {status?.resultsLastError || 'None'}</Typography>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  </Box>
+);
 }

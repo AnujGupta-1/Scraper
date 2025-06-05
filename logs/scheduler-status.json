@@ -1,12 +1,12 @@
 {
   "running": true,
   "raceListLastRun": null,
-  "raceListNextRun": null,
+  "raceListNextRun": "2025-05-28 09:00:00",
   "raceListLastError": null,
-  "detailsLastRun": "2025-05-21 23:00:00",
-  "detailsNextRun": null,
+  "detailsLastRun": "2025-05-27 17:00:00",
+  "detailsNextRun": "2025-05-27 18:00:00",
   "detailsLastError": null,
-  "resultsLastRun": null,
-  "resultsNextRun": null,
+  "resultsLastRun": "2025-05-27 17:10:00",
+  "resultsNextRun": "2025-05-27 18:10:00",
   "resultsLastError": null
 }

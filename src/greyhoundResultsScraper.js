@@ -18,7 +18,7 @@ const RESULTS_DAY_HEADING = new Date().toLocaleDateString('en-US', {
 
 export const scrapeResults = async () => {
   logger.info('Starting results scraping...');
-  const browser = await puppeteer.launch({ headless: false });
+  const browser = await puppeteer.launch({ headless: false});
   const page = await browser.newPage();
 
   try {
