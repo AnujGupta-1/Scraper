@@ -1,7 +1,7 @@
 const API_BASE = "http://localhost:4000/api";
 
-export async function fetchRaceList() {
-  const resp = await fetch(`${API_BASE}/race-list`);
+export async function fetchRaceList(date) {
+  const resp = await fetch(`${API_BASE}/race-list?date=${date}`);
   return resp.json();
 }
 export async function fetchRaceDetails(date, file) {
@@ -19,8 +19,8 @@ export async function fetchMergedRaceDetails(date) {
   return resp.json();
 }
 
-export async function fetchResults() {
-  const resp = await fetch(`${API_BASE}/results`);
+export async function fetchResults(date) {
+  const resp = await fetch(`${API_BASE}/results?date=${date}`);
   return resp.json();
 }
 export async function fetchSchedulerStatus() {

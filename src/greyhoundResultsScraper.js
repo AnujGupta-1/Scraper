@@ -18,8 +18,15 @@ const RESULTS_DAY_HEADING = new Date().toLocaleDateString('en-US', {
 
 export const scrapeResults = async () => {
   logger.info('Starting results scraping...');
-  const browser = await puppeteer.launch({ headless: false});
+    const browser = await puppeteer.launch({ 
+    headless: "new",
+    args: ['--no-sandbox',
+      '--disable-setuid-sandbox'], 
+    protocolTimeout: 60000,
+    timeout: 60000 });
   const page = await browser.newPage();
+  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');  // <-- update Chrome version
+  await page.setViewport({ width: 1280, height: 800 });
 
   try {
     const fullURL = `${BASE_URL}${RESULTS_DATE}`;

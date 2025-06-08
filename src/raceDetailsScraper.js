@@ -203,7 +203,8 @@ export const runRaceDetailsScraper = async () => {
     return;
   }
 
-  const browser = await puppeteer.launch({ headless: false, protocolTimeout: 60000 });
+  const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox', '--disable-setuid-sandbox'], protocolTimeout: 60000, timeout: 60000 });
+  logger.info(` Puppeteer launched successfully`);
   const allRaceDetails = [];
 
   const scrapeInBatches = async (entries, batchSize) => {
@@ -211,7 +212,13 @@ export const runRaceDetailsScraper = async () => {
       const batch = entries.slice(i, i + batchSize);
       logger.info(`🚀 Starting batch ${i / batchSize + 1} (${batch.length} races)`);
 
-      const pages = await Promise.all(batch.map(() => browser.newPage()));
+//      const pages = await Promise.all(batch.map(() => browser.newPage()));
+        const pages = await Promise.all(batch.map(async () => {
+          const p = await browser.newPage();
+          await p.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
+          await p.setViewport({ width: 1280, height: 800 });
+          return p;
+        }));
 
       const results = await Promise.allSettled(
         batch.map((entry, idx) =>

@@ -22,8 +22,8 @@ function getTodayDate() {
 
 // Endpoint: Get today's race list
 app.get('/api/race-list', (req, res) => {
-  const today = getTodayDate();
-  const file = path.join(EXPORTS_DIR, today, 'greyhound-races.csv');
+  const date = req.query.date || getTodayDate();
+  const file = path.join(EXPORTS_DIR, date, 'greyhound-races.csv');
   const results = [];
   if (!fs.existsSync(file)) return res.json([]);
   fs.createReadStream(file)
@@ -107,8 +107,8 @@ app.get('/api/race-details-merged', async (req, res) => {
 
 // Endpoint: Get today's results
 app.get('/api/results', (req, res) => {
-  const today = getTodayDate();
-  const file = path.join(EXPORTS_DIR, today, 'results.csv');
+  const date = req.query.date || getTodayDate();
+  const file = path.join(EXPORTS_DIR, date, 'greyhound-races.csv');
   const results = [];
   if (!fs.existsSync(file)) return res.json([]);
   fs.createReadStream(file)
