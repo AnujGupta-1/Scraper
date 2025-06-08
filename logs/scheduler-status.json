@@ -3,10 +3,10 @@
   "raceListLastRun": null,
   "raceListNextRun": "2025-06-09 09:00:00",
   "raceListLastError": null,
-  "detailsLastRun": "2025-06-08 12:00:00",
-  "detailsNextRun": "2025-06-08 13:00:00",
+  "detailsLastRun": null,
+  "detailsNextRun": "2025-06-08 16:00:00",
   "detailsLastError": null,
-  "resultsLastRun": "2025-06-08 12:10:00",
-  "resultsNextRun": "2025-06-08 13:10:00",
+  "resultsLastRun": "2025-06-08 15:10:00",
+  "resultsNextRun": "2025-06-08 16:10:00",
   "resultsLastError": null
 }
