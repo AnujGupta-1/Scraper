@@ -108,7 +108,7 @@ app.get('/api/race-details-merged', async (req, res) => {
 // Endpoint: Get today's results
 app.get('/api/results', (req, res) => {
   const date = req.query.date || getTodayDate();
-  const file = path.join(EXPORTS_DIR, date, 'greyhound-races.csv');
+  const file = path.join(EXPORTS_DIR, date, 'results.csv');
   const results = [];
   if (!fs.existsSync(file)) return res.json([]);
   fs.createReadStream(file)
